@@ -1,0 +1,42 @@
+openapi: 3.0.3
+info:
+  title: Workouts Backend API
+  version: 0.1.0
+  description: REST API для приложения Workouts
+
+servers:
+  - url: http://localhost:8080/api
+    description: Local development
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      operationId: checkHealth
+      responses:
+        "200":
+          description: Service is running
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "503":
+          description: Database unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Service is running
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
