@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"workouts-backend/src/testhelper"
 
 	"github.com/gin-gonic/gin"
 )
@@ -16,7 +17,8 @@ func TestMain(m *testing.M) {
 }
 
 func TestHealthHandler_CheckHealth(t *testing.T) {
-	handler := NewHealthHandler()
+	db := testhelper.SetupTestDB(t)
+	handler := NewHealthHandler(db)
 	router := gin.New()
 	router.GET("/health", handler.CheckHealth)
 
@@ -39,9 +41,10 @@ func TestHealthHandler_CheckHealth(t *testing.T) {
 }
 
 func TestRegisterHealthHandler(t *testing.T) {
+	db := testhelper.SetupTestDB(t)
 	router := gin.New()
 	api := router.Group("/api")
-	RegisterHealthHandler(api)
+	RegisterHealthHandler(api, db)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
 	rec := httptest.NewRecorder()

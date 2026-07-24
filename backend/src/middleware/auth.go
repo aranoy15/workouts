@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"errors"
 	"net/http"
 	"slices"
 	"strings"
@@ -19,36 +20,58 @@ var (
 
 func Auth(router gin.IRouter, cfg *config.Config, db *gorm.DB, allowedRoles ...string) {
 	router.Use(func(c *gin.Context) {
-		token := c.GetHeader("Authorization")
+		token := c.GetHeader(authorizationHeader)
 		if token == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 			return
 		}
 		if !strings.HasPrefix(token, bearerPrefix) {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 			return
 		}
 		token = strings.TrimPrefix(token, bearerPrefix+" ")
-		claims, err := jwt.Parse(token, func(taken *jwt.Token) (interface{}, error) {
+		claims, err := jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
+			if t.Method != jwt.SigningMethodHS256 {
+				return nil, jwt.ErrTokenSignatureInvalid
+			}
 			return []byte(cfg.JWTSecret), nil
-		})
+		}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}), jwt.WithExpirationRequired())
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 			return
 		}
 		if !claims.Valid {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 			return
 		}
-		userID := claims.Claims.(jwt.MapClaims)["user_id"].(string)
+
+		mapClaims, ok := claims.Claims.(jwt.MapClaims)
+		if !ok {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
+		userID, ok := mapClaims["user_id"].(string)
+		if !ok || userID == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
+
 		user, err := database.GetUserByID(db, userID)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			if errors.Is(err, database.ErrUserNotFound) {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+				return
+			}
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error"})
+			return
+		}
+		if !user.IsActive {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 			return
 		}
 
 		if len(allowedRoles) > 0 && !slices.Contains(allowedRoles, string(user.Role)) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
 			return
 		}
 		c.Set("user", user)

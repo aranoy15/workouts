@@ -71,5 +71,10 @@ func Connect(cfg *config.Config) (*DB, error) {
 
 	log.Printf("Database connected with schema: %s", schemaName)
 
-	return &DB{DB: db}, nil
+	connected := &DB{DB: db}
+	if err := EnsureBootstrapAdmin(connected.DB, cfg); err != nil {
+		return nil, err
+	}
+
+	return connected, nil
 }

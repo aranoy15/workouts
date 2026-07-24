@@ -36,6 +36,10 @@ services:
       DB_NAME: workouts
       DB_SSLMODE: disable
       DB_SCHEMA: workouts
+      JWT_SECRET: change-me-to-a-long-random-secret
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: change-me-admin-password
+      ADMIN_EMAIL: admin@example.com
     depends_on:
       postgres:
         condition: service_healthy

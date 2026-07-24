@@ -1,12 +1,15 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strconv"
 
 	"github.com/joho/godotenv"
 )
+
+const insecureDefaultJWTSecret = "no-key"
 
 type DBConfig struct {
 	Host     string
@@ -19,19 +22,30 @@ type DBConfig struct {
 }
 
 type Config struct {
-	Port      string
-	JWTSecret string
-	DBConfig  DBConfig
+	Port          string
+	JWTSecret     string
+	AdminUsername string
+	AdminPassword string
+	AdminEmail    string
+	DBConfig      DBConfig
 }
 
-func Load() *Config {
+func Load() (*Config, error) {
 	if err := godotenv.Load(); err != nil {
 		log.Println("File .env not found, using environment variables")
 	}
 
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" || jwtSecret == insecureDefaultJWTSecret {
+		return nil, fmt.Errorf("JWT_SECRET must be set to a non-default value")
+	}
+
 	return &Config{
-		Port:      getEnv("PORT", "8080"),
-		JWTSecret: getEnv("JWT_SECRET", "no-key"),
+		Port:          getEnv("PORT", "8080"),
+		JWTSecret:     jwtSecret,
+		AdminUsername: getEnv("ADMIN_USERNAME", "admin"),
+		AdminPassword: os.Getenv("ADMIN_PASSWORD"),
+		AdminEmail:    os.Getenv("ADMIN_EMAIL"),
 		DBConfig: DBConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
 			Port:     getEnv("DB_PORT", "5432"),
@@ -41,7 +55,7 @@ func Load() *Config {
 			SSLMode:  getEnv("DB_SSLMODE", "disable"),
 			Schema:   getEnv("DB_SCHEMA", "workouts"),
 		},
-	}
+	}, nil
 }
 
 func getEnv(key string, defaultValue string) string {

@@ -25,10 +25,21 @@ make migrate-up
 make run-env
 ```
 
+Перед первым запуском задайте в `.env` обязательный `JWT_SECRET` и `ADMIN_PASSWORD`
+(если таблица пользователей пуста, при старте создаётся начальный admin).
+
 Проверка:
 
 ```bash
 curl http://localhost:8080/api/health
+```
+
+Логин:
+
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"change-me-admin-password"}'
 ```
 
 ## Команды Makefile
@@ -51,6 +62,8 @@ curl http://localhost:8080/api/health
 | Method | Path | Описание |
 |--------|------|----------|
 | GET | `/api/health` | Health check (проверяет доступность БД) |
+| POST | `/api/auth/login` | Логин (JWT) |
+| GET/POST/PUT | `/api/users` | Управление пользователями (только admin) |
 
 ## Структура проекта
 

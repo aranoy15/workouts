@@ -7,21 +7,23 @@
 package main
 
 import (
+	"github.com/gin-gonic/gin"
 	"workouts-backend/src/config"
 	"workouts-backend/src/database"
 	"workouts-backend/src/router"
-
-	"github.com/gin-gonic/gin"
 )
 
 // Injectors from wire.go:
 
 func InitializeApp() (*gin.Engine, error) {
-	configConfig := config.Load()
-	_, err := database.Connect(configConfig)
+	configConfig, err := config.Load()
 	if err != nil {
 		return nil, err
 	}
-	engine := router.NewRouter(configConfig)
+	db, err := database.Connect(configConfig)
+	if err != nil {
+		return nil, err
+	}
+	engine := router.NewRouter(configConfig, db)
 	return engine, nil
 }
