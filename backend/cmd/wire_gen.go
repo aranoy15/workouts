@@ -9,7 +9,6 @@ package main
 import (
 	"workouts-backend/src/config"
 	"workouts-backend/src/database"
-	"workouts-backend/src/handlers"
 	"workouts-backend/src/router"
 
 	"github.com/gin-gonic/gin"
@@ -19,11 +18,10 @@ import (
 
 func InitializeApp() (*gin.Engine, error) {
 	configConfig := config.Load()
-	db, err := database.Connect(configConfig)
+	_, err := database.Connect(configConfig)
 	if err != nil {
 		return nil, err
 	}
-	healthHandler := handlers.NewHealthHandler(db)
-	engine := router.NewRouter(configConfig, healthHandler)
+	engine := router.NewRouter(configConfig)
 	return engine, nil
 }
