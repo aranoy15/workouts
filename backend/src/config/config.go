@@ -21,6 +21,14 @@ type DBConfig struct {
 	Schema   string
 }
 
+type S3Config struct {
+	Endpoint        string
+	AccessKeyID     string
+	SecretAccessKey string
+	BucketName      string
+	Region          string
+}
+
 type Config struct {
 	Port          string
 	JWTSecret     string
@@ -28,6 +36,7 @@ type Config struct {
 	AdminPassword string
 	AdminEmail    string
 	DBConfig      DBConfig
+	S3Config      S3Config
 }
 
 func Load() (*Config, error) {
@@ -54,6 +63,13 @@ func Load() (*Config, error) {
 			DBName:   getEnv("DB_NAME", "workouts"),
 			SSLMode:  getEnv("DB_SSLMODE", "disable"),
 			Schema:   getEnv("DB_SCHEMA", "workouts"),
+		},
+		S3Config: S3Config{
+			Endpoint:        getEnv("S3_ENDPOINT", "https://storage.yandexcloud.net"),
+			AccessKeyID:     os.Getenv("S3_ACCESS_KEY_ID"),
+			SecretAccessKey: os.Getenv("S3_SECRET_ACCESS_KEY"),
+			BucketName:      os.Getenv("S3_BUCKET_NAME"),
+			Region:          getEnv("S3_REGION", "ru-central1"),
 		},
 	}, nil
 }

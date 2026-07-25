@@ -11,6 +11,7 @@ import (
 	"workouts-backend/src/config"
 	"workouts-backend/src/database"
 	"workouts-backend/src/router"
+	"workouts-backend/src/services"
 )
 
 // Injectors from wire.go:
@@ -24,6 +25,10 @@ func InitializeApp() (*gin.Engine, error) {
 	if err != nil {
 		return nil, err
 	}
-	engine := router.NewRouter(configConfig, db)
+	client, err := services.NewS3Client(configConfig)
+	if err != nil {
+		return nil, err
+	}
+	engine := router.NewRouter(configConfig, db, client)
 	return engine, nil
 }

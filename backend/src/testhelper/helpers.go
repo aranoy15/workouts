@@ -42,6 +42,22 @@ func SetupTestDB(t *testing.T) *gorm.DB {
 		t.Fatalf("create users table: %v", err)
 	}
 
+	if err := db.Exec(`
+		CREATE TABLE exercises (
+			id TEXT PRIMARY KEY,
+			name TEXT NOT NULL,
+			description TEXT,
+			muscle_group TEXT,
+			level TEXT,
+			video_url TEXT,
+			created_at DATETIME,
+			updated_at DATETIME,
+			deleted_at DATETIME
+		)
+	`).Error; err != nil {
+		t.Fatalf("create exercises table: %v", err)
+	}
+
 	return db
 }
 
@@ -49,6 +65,13 @@ func MustCreateUser(t *testing.T, db *gorm.DB, u *models.User) {
 	t.Helper()
 	if err := db.Create(u).Error; err != nil {
 		t.Fatalf("create user in test: %v", err)
+	}
+}
+
+func MustCreateExercise(t *testing.T, db *gorm.DB, e *models.Exercise) {
+	t.Helper()
+	if err := db.Create(e).Error; err != nil {
+		t.Fatalf("create exercise in test: %v", err)
 	}
 }
 
