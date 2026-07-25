@@ -41,7 +41,7 @@ func Load() (*Config, error) {
 		log.Println("File .env not found, using environment variables")
 	}
 
-	jwtSecret := os.Getenv("JWT_SECRET")
+	jwtSecret := getEnv("JWT_SECRET", insecureDefaultJWTSecret)
 	if jwtSecret == "" || jwtSecret == insecureDefaultJWTSecret {
 		return nil, fmt.Errorf("JWT_SECRET must be set to a non-default value")
 	}

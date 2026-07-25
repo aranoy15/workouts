@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"time"
 	"workouts-backend/src/config"
@@ -77,16 +78,19 @@ func RegisterAdminUserHandler(router *gin.RouterGroup, cfg *config.Config, db *g
 func (h *UserHandler) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Println("Invalid request body: ", err)
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse("Invalid request body"))
 		return
 	}
 	if req.Email == "" && req.Username == "" {
+		log.Println("Email or username is required")
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse("Email or username is required"))
 		return
 	}
 
 	adminCount, err := database.CountAdmins(h.db)
 	if err != nil {
+		log.Println("Failed to check admins: ", err)
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse("Failed to check admins"))
 		return
 	}
@@ -102,6 +106,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 		user, err = database.GetUserByEmail(h.db, req.Email)
 	}
 	if err != nil && !errors.Is(err, database.ErrUserNotFound) {
+		log.Println("Failed to get user: ", err)
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse("Failed to get user"))
 		return
 	}

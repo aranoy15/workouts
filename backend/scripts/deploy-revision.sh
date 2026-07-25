@@ -58,7 +58,7 @@ elif [ -n "$SERVICE_ACCOUNT_NAME" ]; then
     fi
     echo -e "${GREEN}Found service account ID: $SERVICE_ACCOUNT_ID${NC}"
 else
-    SERVICE_ACCOUNT_NAME="workouts-backend-admin"
+    SERVICE_ACCOUNT_NAME="workouts-bot-super-admin"
     echo -e "${YELLOW}SERVICE_ACCOUNT_NAME not specified, using default: $SERVICE_ACCOUNT_NAME${NC}"
     echo -e "${BLUE}Getting service account ID for: $SERVICE_ACCOUNT_NAME${NC}"
     SERVICE_ACCOUNT_ID=$(yc iam service-account get "$SERVICE_ACCOUNT_NAME" --format json 2>/dev/null | jq -r '.id' 2>/dev/null)
