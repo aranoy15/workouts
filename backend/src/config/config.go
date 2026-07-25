@@ -30,13 +30,10 @@ type S3Config struct {
 }
 
 type Config struct {
-	Port          string
-	JWTSecret     string
-	AdminUsername string
-	AdminPassword string
-	AdminEmail    string
-	DBConfig      DBConfig
-	S3Config      S3Config
+	Port      string
+	JWTSecret string
+	DBConfig  DBConfig
+	S3Config  S3Config
 }
 
 func Load() (*Config, error) {
@@ -50,11 +47,8 @@ func Load() (*Config, error) {
 	}
 
 	return &Config{
-		Port:          getEnv("PORT", "8080"),
-		JWTSecret:     jwtSecret,
-		AdminUsername: getEnv("ADMIN_USERNAME", "admin"),
-		AdminPassword: os.Getenv("ADMIN_PASSWORD"),
-		AdminEmail:    os.Getenv("ADMIN_EMAIL"),
+		Port:      getEnv("PORT", "8080"),
+		JWTSecret: jwtSecret,
 		DBConfig: DBConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
 			Port:     getEnv("DB_PORT", "5432"),

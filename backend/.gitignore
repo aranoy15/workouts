@@ -16,6 +16,8 @@ go.work
 .env
 .env.local
 
+.container-config.json
+
 .idea/
 .vscode/
 *.swp

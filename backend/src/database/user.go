@@ -89,6 +89,15 @@ func CountUsers(db *gorm.DB) (int64, error) {
 	return count, nil
 }
 
+func CountAdmins(db *gorm.DB) (int64, error) {
+	var count int64
+	if err := db.Model(&models.User{}).Where("role = ? AND is_active = ?", models.UserRoleAdmin, true).Count(&count).Error; err != nil {
+		log.Printf("Error counting admins: %v", err)
+		return 0, err
+	}
+	return count, nil
+}
+
 func UpdateUser(db *gorm.DB, user *models.User) error {
 	updates := map[string]interface{}{
 		"username":  user.Username,

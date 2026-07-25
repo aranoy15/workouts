@@ -85,8 +85,17 @@ func (h *UserHandler) Login(c *gin.Context) {
 		return
 	}
 
+	adminCount, err := database.CountAdmins(h.db)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse("Failed to check admins"))
+		return
+	}
+	if adminCount == 0 {
+		h.bootstrapLogin(c, req)
+		return
+	}
+
 	var user *models.User
-	var err error
 	if req.Username != "" {
 		user, err = database.GetUserByUsername(h.db, req.Username)
 	} else {
@@ -110,6 +119,57 @@ func (h *UserHandler) Login(c *gin.Context) {
 		return
 	}
 
+	h.respondWithToken(c, user)
+}
+
+func (h *UserHandler) bootstrapLogin(c *gin.Context, req LoginRequest) {
+	var user *models.User
+	var err error
+	if req.Username != "" {
+		user, err = database.GetUserByUsername(h.db, req.Username)
+	} else {
+		user, err = database.GetUserByEmail(h.db, req.Email)
+	}
+	if err != nil && !errors.Is(err, database.ErrUserNotFound) {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse("Failed to get user"))
+		return
+	}
+
+	if errors.Is(err, database.ErrUserNotFound) || user == nil {
+		username := req.Username
+		if username == "" {
+			username = req.Email
+		}
+		hashedPassword, hashErr := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		if hashErr != nil {
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse("Failed to hash password"))
+			return
+		}
+		user = &models.User{
+			ID:       uuid.New().String(),
+			Username: username,
+			Email:    req.Email,
+			Password: string(hashedPassword),
+			Role:     models.UserRoleAdmin,
+			IsActive: true,
+		}
+		if createErr := database.CreateUser(h.db, user); createErr != nil {
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse("Failed to create admin"))
+			return
+		}
+	} else {
+		user.Role = models.UserRoleAdmin
+		user.IsActive = true
+		if updateErr := database.UpdateUser(h.db, user); updateErr != nil {
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse("Failed to promote admin"))
+			return
+		}
+	}
+
+	h.respondWithToken(c, user)
+}
+
+func (h *UserHandler) respondWithToken(c *gin.Context, user *models.User) {
 	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": user.ID,
 		"role":    string(user.Role),

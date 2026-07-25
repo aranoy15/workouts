@@ -147,6 +147,41 @@ func TestUserHandler_Login(t *testing.T) {
 	})
 }
 
+func TestUserHandler_Login_BootstrapWhenNoAdmin(t *testing.T) {
+	db := testhelper.SetupTestDB(t)
+	cfg := testhelper.TestConfig()
+	r := gin.New()
+	api := r.Group("/api")
+	RegisterUserHandler(api, cfg, db)
+
+	t.Run("creates admin with any credentials", func(t *testing.T) {
+		w := doJSONRequest(r, http.MethodPost, "/api/auth/login", "",
+			`{"username":"first_admin","password":"any-password"}`)
+		if w.Code != http.StatusOK {
+			t.Fatalf("status: got %d, want %d, body: %s", w.Code, http.StatusOK, w.Body.String())
+		}
+		if !strings.Contains(w.Body.String(), `"token"`) {
+			t.Errorf("expected token in body, got %q", w.Body.String())
+		}
+
+		var u models.User
+		if err := db.Where("username = ?", "first_admin").First(&u).Error; err != nil {
+			t.Fatalf("admin should be created: %v", err)
+		}
+		if u.Role != models.UserRoleAdmin {
+			t.Errorf("role: got %q, want %q", u.Role, models.UserRoleAdmin)
+		}
+	})
+
+	t.Run("after admin exists normal auth is required", func(t *testing.T) {
+		w := doJSONRequest(r, http.MethodPost, "/api/auth/login", "",
+			`{"username":"nobody","password":"wrong"}`)
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("status: got %d, want %d, body: %s", w.Code, http.StatusUnauthorized, w.Body.String())
+		}
+	})
+}
+
 func TestUserHandler_AdminOnly(t *testing.T) {
 	db := testhelper.SetupTestDB(t)
 	r, _, userToken := setupUserRouter(t, db)
