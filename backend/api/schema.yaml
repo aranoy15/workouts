@@ -62,7 +62,7 @@ paths:
       summary: List users
       operationId: getUsers
       security:
-        - bearerAuth: []
+        - authToken: []
       responses:
         "200":
           description: List of users
@@ -86,7 +86,7 @@ paths:
       summary: Create user
       operationId: createUser
       security:
-        - bearerAuth: []
+        - authToken: []
       requestBody:
         required: true
         content:
@@ -130,7 +130,7 @@ paths:
       summary: Update user
       operationId: updateUser
       security:
-        - bearerAuth: []
+        - authToken: []
       parameters:
         - name: id
           in: path
@@ -191,7 +191,7 @@ paths:
       summary: Create exercise
       operationId: createExercise
       security:
-        - bearerAuth: []
+        - authToken: []
       requestBody:
         required: true
         content:
@@ -248,11 +248,60 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+    put:
+      summary: Update exercise
+      operationId: updateExercise
+      security:
+        - authToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateExerciseRequest"
+      responses:
+        "200":
+          description: Exercise updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExerciseResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden — admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Exercise not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     delete:
       summary: Delete exercise
       operationId: deleteExercise
       security:
-        - bearerAuth: []
+        - authToken: []
       parameters:
         - name: id
           in: path
@@ -286,12 +335,120 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /muscle-groups:
+    get:
+      summary: List muscle groups
+      operationId: getMuscleGroups
+      responses:
+        "200":
+          description: List of muscle groups
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NamedCatalogListResponse"
+    post:
+      summary: Create muscle group
+      operationId: createMuscleGroup
+      security:
+        - authToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateNamedRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NamedCatalogResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /levels:
+    get:
+      summary: List levels
+      operationId: getLevels
+      responses:
+        "200":
+          description: List of levels
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NamedCatalogListResponse"
+    post:
+      summary: Create level
+      operationId: createLevel
+      security:
+        - authToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateNamedRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NamedCatalogResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /videos:
     post:
       summary: Upload video to S3
       operationId: uploadVideo
       security:
-        - bearerAuth: []
+        - authToken: []
       requestBody:
         required: true
         content:
@@ -333,7 +490,7 @@ paths:
       summary: Delete video from S3
       operationId: deleteVideo
       security:
-        - bearerAuth: []
+        - authToken: []
       parameters:
         - name: key
           in: query
@@ -377,10 +534,11 @@ paths:
 
 components:
   securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
+    authToken:
+      type: apiKey
+      in: header
+      name: X-Auth-Token
+      description: JWT access token
 
   schemas:
     MessageResponse:
@@ -477,6 +635,39 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/User"
+    NamedCatalogItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateNamedRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+    NamedCatalogResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/NamedCatalogItem"
+    NamedCatalogListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/NamedCatalogItem"
     CreateExerciseRequest:
       type: object
       required:
@@ -486,12 +677,37 @@ components:
           type: string
         description:
           type: string
-        muscle_group:
+        muscle_group_id:
           type: string
-        level:
+          format: uuid
+          nullable: true
+        level_id:
           type: string
-        video_url:
+          format: uuid
+          nullable: true
+        video_urls:
+          type: array
+          items:
+            type: string
+    UpdateExerciseRequest:
+      type: object
+      properties:
+        name:
           type: string
+        description:
+          type: string
+        muscle_group_id:
+          type: string
+          format: uuid
+          nullable: true
+        level_id:
+          type: string
+          format: uuid
+          nullable: true
+        video_urls:
+          type: array
+          items:
+            type: string
     Exercise:
       type: object
       properties:
@@ -502,12 +718,22 @@ components:
           type: string
         description:
           type: string
+        muscle_group_id:
+          type: string
+          format: uuid
+          nullable: true
+        level_id:
+          type: string
+          format: uuid
+          nullable: true
         muscle_group:
-          type: string
+          $ref: "#/components/schemas/NamedCatalogItem"
         level:
-          type: string
-        video_url:
-          type: string
+          $ref: "#/components/schemas/NamedCatalogItem"
+        video_urls:
+          type: array
+          items:
+            type: string
         created_at:
           type: string
           format: date-time

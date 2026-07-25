@@ -81,23 +81,36 @@ func setupExerciseRouter(t *testing.T, db *gorm.DB, s3Client S3Service) (*gin.En
 		IsActive: true,
 	})
 
+	testhelper.MustCreateMuscleGroup(t, db, &models.MuscleGroup{
+		ID:   testhelper.TestMuscleGroupID,
+		Name: "legs",
+	})
+	testhelper.MustCreateLevel(t, db, &models.Level{
+		ID:   testhelper.TestLevelID,
+		Name: "beginner",
+	})
+
+	mgID := testhelper.TestMuscleGroupID
+	levelID := testhelper.TestLevelID
 	testhelper.MustCreateExercise(t, db, &models.Exercise{
-		ID:          testExerciseID,
-		Name:        "Squat",
-		Description: "Basic squat",
-		MuscleGroup: "legs",
-		Level:       "beginner",
-		VideoURL:    "https://example.com/squat",
+		ID:            testExerciseID,
+		Name:          "Squat",
+		Description:   "Basic squat",
+		MuscleGroupID: &mgID,
+		LevelID:       &levelID,
+		VideoURLs:     []string{"https://example.com/squat"},
 	})
 
 	cfg := testhelper.TestConfig()
 	r := gin.New()
 	api := r.Group("/api")
 	RegisterExerciseHandler(api, db)
+	RegisterCatalogHandler(api, db)
 
 	admin := api.Group("")
 	middleware.Auth(admin, cfg, db, string(models.UserRoleAdmin))
 	RegisterAdminExerciseHandler(admin, db, s3Client)
+	RegisterAdminCatalogHandler(admin, db)
 
 	adminToken := testhelper.MustSignJWT(t, testhelper.TestAdminID, cfg.JWTSecret)
 	userToken := testhelper.MustSignJWT(t, testhelper.TestUserID, cfg.JWTSecret)
@@ -122,7 +135,7 @@ func multipartVideoRequest(t *testing.T, urlPath, token, filename, content strin
 	req := httptest.NewRequest(http.MethodPost, urlPath, &body)
 	req.Header.Set("Content-Type", w.FormDataContentType())
 	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("X-Auth-Token", token)
 	}
 	return req
 }
@@ -199,6 +212,23 @@ func TestExerciseHandler_AdminOnly(t *testing.T) {
 			method:     http.MethodPost,
 			path:       "/api/exercises",
 			body:       `{"name":"Deadlift"}`,
+			token:      userToken,
+			wantStatus: http.StatusForbidden,
+			contains:   "Forbidden",
+		},
+		{
+			name:       "UpdateExercise without token",
+			method:     http.MethodPut,
+			path:       "/api/exercises/" + testExerciseID,
+			body:       `{"name":"Updated Squat"}`,
+			wantStatus: http.StatusUnauthorized,
+			contains:   "Unauthorized",
+		},
+		{
+			name:       "UpdateExercise with user role",
+			method:     http.MethodPut,
+			path:       "/api/exercises/" + testExerciseID,
+			body:       `{"name":"Updated Squat"}`,
 			token:      userToken,
 			wantStatus: http.StatusForbidden,
 			contains:   "Forbidden",
@@ -288,8 +318,13 @@ func TestExerciseHandler_CreateExercise(t *testing.T) {
 	r, adminToken, _ := setupExerciseRouter(t, db, nil)
 
 	t.Run("success", func(t *testing.T) {
+		chest := &models.MuscleGroup{ID: "550e8400-e29b-41d4-a716-446655440011", Name: "chest"}
+		intermediate := &models.Level{ID: "550e8400-e29b-41d4-a716-446655440012", Name: "intermediate"}
+		testhelper.MustCreateMuscleGroup(t, db, chest)
+		testhelper.MustCreateLevel(t, db, intermediate)
+
 		w := doJSONRequest(r, http.MethodPost, "/api/exercises", adminToken,
-			`{"name":"Bench Press","description":"Chest press","muscle_group":"chest","level":"intermediate","video_url":"https://example.com/bench"}`)
+			`{"name":"Bench Press","description":"Chest press","muscle_group_id":"`+chest.ID+`","level_id":"`+intermediate.ID+`","video_urls":["https://example.com/bench"]}`)
 		if w.Code != http.StatusCreated {
 			t.Fatalf("status: got %d, want %d, body: %s", w.Code, http.StatusCreated, w.Body.String())
 		}
@@ -298,8 +333,19 @@ func TestExerciseHandler_CreateExercise(t *testing.T) {
 		if err := db.Where("name = ?", "Bench Press").First(&u).Error; err != nil {
 			t.Fatalf("exercise should exist in DB: %v", err)
 		}
-		if u.MuscleGroup != "chest" {
-			t.Errorf("muscle_group: got %q, want %q", u.MuscleGroup, "chest")
+		if u.MuscleGroupID == nil || *u.MuscleGroupID != chest.ID {
+			t.Errorf("muscle_group_id: got %v, want %q", u.MuscleGroupID, chest.ID)
+		}
+		if len(u.VideoURLs) != 1 || u.VideoURLs[0] != "https://example.com/bench" {
+			t.Errorf("video_urls: got %#v", u.VideoURLs)
+		}
+	})
+
+	t.Run("invalid muscle_group_id", func(t *testing.T) {
+		w := doJSONRequest(r, http.MethodPost, "/api/exercises", adminToken,
+			`{"name":"Bad","muscle_group_id":"550e8400-e29b-41d4-a716-446655440099"}`)
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("status: got %d, want %d, body: %s", w.Code, http.StatusBadRequest, w.Body.String())
 		}
 	})
 
@@ -307,6 +353,59 @@ func TestExerciseHandler_CreateExercise(t *testing.T) {
 		w := doJSONRequest(r, http.MethodPost, "/api/exercises", adminToken, `{"description":"no name"}`)
 		if w.Code != http.StatusBadRequest {
 			t.Fatalf("status: got %d, want %d, body: %s", w.Code, http.StatusBadRequest, w.Body.String())
+		}
+	})
+}
+
+func TestExerciseHandler_UpdateExercise(t *testing.T) {
+	db := testhelper.SetupTestDB(t)
+	r, adminToken, _ := setupExerciseRouter(t, db, nil)
+
+	t.Run("success", func(t *testing.T) {
+		quads := &models.MuscleGroup{ID: "550e8400-e29b-41d4-a716-446655440013", Name: "quads"}
+		intermediate := &models.Level{ID: "550e8400-e29b-41d4-a716-446655440014", Name: "intermediate"}
+		testhelper.MustCreateMuscleGroup(t, db, quads)
+		testhelper.MustCreateLevel(t, db, intermediate)
+
+		w := doJSONRequest(r, http.MethodPut, "/api/exercises/"+testExerciseID, adminToken,
+			`{"name":"Front Squat","level_id":"`+intermediate.ID+`","muscle_group_id":"`+quads.ID+`","video_urls":["https://example.com/a","https://example.com/b"]}`)
+		if w.Code != http.StatusOK {
+			t.Fatalf("status: got %d, want %d, body: %s", w.Code, http.StatusOK, w.Body.String())
+		}
+
+		var exercise models.Exercise
+		if err := db.Where("id = ?", testExerciseID).First(&exercise).Error; err != nil {
+			t.Fatalf("exercise should exist in DB: %v", err)
+		}
+		if exercise.Name != "Front Squat" {
+			t.Errorf("name: got %q, want %q", exercise.Name, "Front Squat")
+		}
+		if exercise.LevelID == nil || *exercise.LevelID != intermediate.ID {
+			t.Errorf("level_id: got %v, want %q", exercise.LevelID, intermediate.ID)
+		}
+		if exercise.MuscleGroupID == nil || *exercise.MuscleGroupID != quads.ID {
+			t.Errorf("muscle_group_id: got %v, want %q", exercise.MuscleGroupID, quads.ID)
+		}
+		if exercise.Description != "Basic squat" {
+			t.Errorf("description should stay unchanged, got %q", exercise.Description)
+		}
+		if len(exercise.VideoURLs) != 2 {
+			t.Fatalf("video_urls len: got %d, want 2", len(exercise.VideoURLs))
+		}
+	})
+
+	t.Run("empty name", func(t *testing.T) {
+		w := doJSONRequest(r, http.MethodPut, "/api/exercises/"+testExerciseID, adminToken, `{"name":""}`)
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("status: got %d, want %d, body: %s", w.Code, http.StatusBadRequest, w.Body.String())
+		}
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		w := doJSONRequest(r, http.MethodPut, "/api/exercises/550e8400-e29b-41d4-a716-446655440099", adminToken,
+			`{"name":"Missing"}`)
+		if w.Code != http.StatusNotFound {
+			t.Fatalf("status: got %d, want %d, body: %s", w.Code, http.StatusNotFound, w.Body.String())
 		}
 	})
 }
@@ -381,7 +480,7 @@ func TestExerciseHandler_UploadVideo(t *testing.T) {
 		_ = mw.Close()
 		req := httptest.NewRequest(http.MethodPost, "/api/videos", &body)
 		req.Header.Set("Content-Type", mw.FormDataContentType())
-		req.Header.Set("Authorization", "Bearer "+adminToken)
+		req.Header.Set("X-Auth-Token", adminToken)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 		if w.Code != http.StatusBadRequest {
@@ -412,7 +511,7 @@ func TestExerciseHandler_DeleteVideo(t *testing.T) {
 		body := `{"video_url":"https://storage.yandexcloud.net/workouts-videos/` + key + `"}`
 		req := httptest.NewRequest(http.MethodDelete, "/api/videos", bytes.NewBufferString(body))
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+adminToken)
+		req.Header.Set("X-Auth-Token", adminToken)
 		req.ContentLength = int64(len(body))
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)

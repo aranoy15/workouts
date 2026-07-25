@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net/http"
 	"slices"
-	"strings"
 	"workouts-backend/src/config"
 	"workouts-backend/src/database"
 
@@ -13,23 +12,15 @@ import (
 	"gorm.io/gorm"
 )
 
-var (
-	authorizationHeader = "Authorization"
-	bearerPrefix        = "Bearer"
-)
+const authTokenHeader = "X-Auth-Token"
 
 func Auth(router gin.IRouter, cfg *config.Config, db *gorm.DB, allowedRoles ...string) {
 	router.Use(func(c *gin.Context) {
-		token := c.GetHeader(authorizationHeader)
+		token := c.GetHeader(authTokenHeader)
 		if token == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 			return
 		}
-		if !strings.HasPrefix(token, bearerPrefix) {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-			return
-		}
-		token = strings.TrimPrefix(token, bearerPrefix+" ")
 		claims, err := jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
 			if t.Method != jwt.SigningMethodHS256 {
 				return nil, jwt.ErrTokenSignatureInvalid

@@ -1,0 +1,257 @@
+.products-list-container {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.products-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.products-header h1 {
+  margin: 0;
+  color: #333;
+}
+
+.add-button {
+  padding: 0.75rem 1.5rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.add-button:hover {
+  background: #5568d3;
+}
+
+.filters {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.search-input,
+.category-input {
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+  flex: 1;
+}
+
+.search-input:focus,
+.category-input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.error-message {
+  color: #e74c3c;
+  padding: 1rem;
+  background: #fee;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.loading,
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+  color: #666;
+  font-size: 1.1rem;
+}
+
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.product-card {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+
+.product-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+
+.product-info {
+  padding: 1rem;
+}
+
+.product-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.product-info h3 {
+  margin: 0;
+  color: #333;
+  flex: 1;
+}
+
+.product-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.images-button {
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.images-button:hover {
+  background: #5568d3;
+}
+
+.delete-button {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  flex-shrink: 0;
+  line-height: 1;
+  padding: 0;
+}
+
+.delete-button:hover:not(:disabled) {
+  background: #c0392b;
+}
+
+.delete-button:disabled {
+  background: #95a5a6;
+  cursor: not-allowed;
+}
+
+.product-info p {
+  margin: 0 0 1rem 0;
+  color: #666;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.product-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.price {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #667eea;
+}
+
+.stock {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.stock.in-stock {
+  background: #d4edda;
+  color: #155724;
+}
+
+.stock.out-of-stock {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.category {
+  display: block;
+  color: #999;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+
+.exercise-video {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  background: #111;
+  display: block;
+}
+
+.exercise-video-placeholder {
+  width: 100%;
+  height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #eee;
+  color: #888;
+  font-size: 0.95rem;
+}
+
+.product-actions .delete-button,
+.product-actions .edit-button {
+  width: auto;
+  min-width: 28px;
+  padding: 0 0.5rem;
+  border-radius: 4px;
+}
+
+.product-actions .edit-button {
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  width: auto;
+  min-width: 48px;
+  height: 28px;
+  padding: 0 0.5rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.product-actions .edit-button:hover {
+  background: #0056b3;
+}
+
+.exercise-videos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: #111;
+}

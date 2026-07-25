@@ -64,7 +64,7 @@ func doJSONRequest(r http.Handler, method, path, token string, body string) *htt
 		req = httptest.NewRequest(method, path, nil)
 	}
 	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("X-Auth-Token", token)
 	}
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)

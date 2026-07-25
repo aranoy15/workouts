@@ -23,6 +23,8 @@ const (
 )
 
 var errInvalidVideoURL = errors.New("invalid video_url")
+var errInvalidMuscleGroupID = errors.New("Invalid muscle_group_id")
+var errInvalidLevelID = errors.New("Invalid level_id")
 
 type S3Service interface {
 	UploadFile(ctx context.Context, objectID string, key string, body io.Reader, contentType string) (string, error)
@@ -31,11 +33,19 @@ type S3Service interface {
 }
 
 type CreateExerciseRequest struct {
-	Name        string `json:"name" binding:"required"`
-	Description string `json:"description"`
-	MuscleGroup string `json:"muscle_group"`
-	Level       string `json:"level"`
-	VideoURL    string `json:"video_url"`
+	Name          string   `json:"name" binding:"required"`
+	Description   string   `json:"description"`
+	MuscleGroupID *string  `json:"muscle_group_id"`
+	LevelID       *string  `json:"level_id"`
+	VideoURLs     []string `json:"video_urls"`
+}
+
+type UpdateExerciseRequest struct {
+	Name          *string   `json:"name"`
+	Description   *string   `json:"description"`
+	MuscleGroupID *string   `json:"muscle_group_id"`
+	LevelID       *string   `json:"level_id"`
+	VideoURLs     *[]string `json:"video_urls"`
 }
 
 type DeleteVideoRequest struct {
@@ -61,6 +71,7 @@ func RegisterExerciseHandler(router *gin.RouterGroup, db *gorm.DB) {
 func RegisterAdminExerciseHandler(router *gin.RouterGroup, db *gorm.DB, s3Client S3Service) {
 	h := NewExerciseHandler(db, s3Client)
 	router.POST("/exercises", h.CreateExercise)
+	router.PUT("/exercises/:id", h.UpdateExercise)
 	router.DELETE("/exercises/:id", h.DeleteExercise)
 	router.POST("/videos", h.UploadVideo)
 	router.DELETE("/videos", h.DeleteVideo)
@@ -97,13 +108,29 @@ func (h *ExerciseHandler) CreateExercise(c *gin.Context) {
 		return
 	}
 
+	muscleGroupID, err := resolveMuscleGroupID(h.db, req.MuscleGroupID)
+	if err != nil {
+		writeFKError(c, err)
+		return
+	}
+	levelID, err := resolveLevelID(h.db, req.LevelID)
+	if err != nil {
+		writeFKError(c, err)
+		return
+	}
+
+	videoURLs := req.VideoURLs
+	if videoURLs == nil {
+		videoURLs = []string{}
+	}
+
 	exercise := &models.Exercise{
-		ID:          uuid.New().String(),
-		Name:        req.Name,
-		Description: req.Description,
-		MuscleGroup: req.MuscleGroup,
-		Level:       req.Level,
-		VideoURL:    req.VideoURL,
+		ID:            uuid.New().String(),
+		Name:          req.Name,
+		Description:   req.Description,
+		MuscleGroupID: muscleGroupID,
+		LevelID:       levelID,
+		VideoURLs:     videoURLs,
 	}
 
 	if err := database.CreateExercise(h.db, exercise); err != nil {
@@ -111,7 +138,72 @@ func (h *ExerciseHandler) CreateExercise(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, models.NewSuccessResponse(exercise))
+	created, err := database.GetExerciseByID(h.db, exercise.ID)
+	if err != nil {
+		c.JSON(http.StatusCreated, models.NewSuccessResponse(exercise))
+		return
+	}
+	c.JSON(http.StatusCreated, models.NewSuccessResponse(created))
+}
+
+func (h *ExerciseHandler) UpdateExercise(c *gin.Context) {
+	exercise, err := database.GetExerciseByID(h.db, c.Param("id"))
+	if err != nil {
+		if errors.Is(err, database.ErrExerciseNotFound) {
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(err.Error()))
+			return
+		}
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse("Failed to get exercise"))
+		return
+	}
+
+	var req UpdateExerciseRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse("Invalid request body"))
+		return
+	}
+
+	if req.Name != nil {
+		if *req.Name == "" {
+			c.JSON(http.StatusBadRequest, models.NewErrorResponse("Name is required"))
+			return
+		}
+		exercise.Name = *req.Name
+	}
+	if req.Description != nil {
+		exercise.Description = *req.Description
+	}
+	if req.MuscleGroupID != nil {
+		muscleGroupID, err := resolveMuscleGroupID(h.db, req.MuscleGroupID)
+		if err != nil {
+			writeFKError(c, err)
+			return
+		}
+		exercise.MuscleGroupID = muscleGroupID
+	}
+	if req.LevelID != nil {
+		levelID, err := resolveLevelID(h.db, req.LevelID)
+		if err != nil {
+			writeFKError(c, err)
+			return
+		}
+		exercise.LevelID = levelID
+	}
+	if req.VideoURLs != nil {
+		exercise.VideoURLs = *req.VideoURLs
+	}
+
+	if err := database.UpdateExercise(h.db, exercise); err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse("Failed to update exercise"))
+		return
+	}
+
+	updated, err := database.GetExerciseByID(h.db, exercise.ID)
+	if err != nil {
+		c.JSON(http.StatusOK, models.NewSuccessResponse(exercise))
+		return
+	}
+	c.JSON(http.StatusOK, models.NewSuccessResponse(updated))
 }
 
 func (h *ExerciseHandler) DeleteExercise(c *gin.Context) {
@@ -223,4 +315,40 @@ func keyFromVideoURL(rawURL, bucket string) (string, error) {
 		return "", errInvalidVideoURL
 	}
 	return parts[1], nil
+}
+
+func resolveMuscleGroupID(db *gorm.DB, id *string) (*string, error) {
+	if id == nil || strings.TrimSpace(*id) == "" {
+		return nil, nil
+	}
+	trimmed := strings.TrimSpace(*id)
+	if _, err := database.GetMuscleGroupByID(db, trimmed); err != nil {
+		if errors.Is(err, database.ErrMuscleGroupNotFound) {
+			return nil, errInvalidMuscleGroupID
+		}
+		return nil, err
+	}
+	return &trimmed, nil
+}
+
+func resolveLevelID(db *gorm.DB, id *string) (*string, error) {
+	if id == nil || strings.TrimSpace(*id) == "" {
+		return nil, nil
+	}
+	trimmed := strings.TrimSpace(*id)
+	if _, err := database.GetLevelByID(db, trimmed); err != nil {
+		if errors.Is(err, database.ErrLevelNotFound) {
+			return nil, errInvalidLevelID
+		}
+		return nil, err
+	}
+	return &trimmed, nil
+}
+
+func writeFKError(c *gin.Context, err error) {
+	if errors.Is(err, errInvalidMuscleGroupID) || errors.Is(err, errInvalidLevelID) {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(err.Error()))
+		return
+	}
+	c.JSON(http.StatusInternalServerError, models.NewErrorResponse("Failed to validate references"))
 }

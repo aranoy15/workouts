@@ -28,15 +28,17 @@ func NewRouter(
 	handlers.RegisterHealthHandler(api, db.DB)
 	handlers.RegisterUserHandler(api, cfg, db.DB)
 	handlers.RegisterExerciseHandler(api, db.DB)
+	handlers.RegisterCatalogHandler(api, db.DB)
 
 	admin := api.Group("")
 	middleware.Auth(admin, cfg, db.DB, string(models.UserRoleAdmin))
 	handlers.RegisterAdminUserHandler(admin, cfg, db.DB)
 	handlers.RegisterAdminExerciseHandler(admin, db.DB, s3Client)
+	handlers.RegisterAdminCatalogHandler(admin, db.DB)
 
 	log.Printf("Router initialized on port %s", cfg.Port)
-	log.Println("  Public endpoints: /api/health, /api/auth/login, /api/exercises")
-	log.Println("  Admin endpoints: /api/users, POST|DELETE /api/exercises, POST|DELETE /api/videos")
+	log.Println("  Public endpoints: /api/health, /api/auth/login, /api/exercises, /api/muscle-groups, /api/levels")
+	log.Println("  Admin endpoints: /api/users, POST|PUT|DELETE /api/exercises, POST /api/muscle-groups|/api/levels, POST|DELETE /api/videos")
 
 	return r
 }

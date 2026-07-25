@@ -7,11 +7,12 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
 	"workouts-backend/src/config"
 	"workouts-backend/src/database"
 	"workouts-backend/src/router"
 	"workouts-backend/src/services"
+
+	"github.com/gin-gonic/gin"
 )
 
 // Injectors from wire.go:
@@ -30,5 +31,6 @@ func InitializeApp() (*gin.Engine, error) {
 		return nil, err
 	}
 	engine := router.NewRouter(configConfig, db, client)
+
 	return engine, nil
 }

@@ -12,7 +12,14 @@ var (
 	ErrExerciseNotFound = errors.New("exercise not found")
 )
 
+func exercisePreload(db *gorm.DB) *gorm.DB {
+	return db.Preload("MuscleGroup").Preload("Level")
+}
+
 func CreateExercise(db *gorm.DB, exercise *models.Exercise) error {
+	if exercise.VideoURLs == nil {
+		exercise.VideoURLs = []string{}
+	}
 	if err := db.Create(exercise).Error; err != nil {
 		log.Printf("Error creating exercise %s: %v", exercise.ID, err)
 		return err
@@ -22,7 +29,7 @@ func CreateExercise(db *gorm.DB, exercise *models.Exercise) error {
 
 func GetExerciseByID(db *gorm.DB, id string) (*models.Exercise, error) {
 	var exercise models.Exercise
-	if err := db.Where("id = ?", id).First(&exercise).Error; err != nil {
+	if err := exercisePreload(db).Where("id = ?", id).First(&exercise).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Printf("Exercise %s not found", id)
 			return nil, ErrExerciseNotFound
@@ -35,11 +42,24 @@ func GetExerciseByID(db *gorm.DB, id string) (*models.Exercise, error) {
 
 func GetExercises(db *gorm.DB) ([]models.Exercise, error) {
 	var exercises []models.Exercise
-	if err := db.Find(&exercises).Error; err != nil {
+	if err := exercisePreload(db).Order("created_at desc").Find(&exercises).Error; err != nil {
 		log.Printf("Error getting exercises: %v", err)
 		return nil, err
 	}
 	return exercises, nil
+}
+
+func UpdateExercise(db *gorm.DB, exercise *models.Exercise) error {
+	if exercise.VideoURLs == nil {
+		exercise.VideoURLs = []string{}
+	}
+	if err := db.Model(exercise).
+		Select("name", "description", "muscle_group_id", "level_id", "video_urls").
+		Updates(exercise).Error; err != nil {
+		log.Printf("Error updating exercise %s: %v", exercise.ID, err)
+		return err
+	}
+	return nil
 }
 
 func DeleteExercise(db *gorm.DB, id string) error {

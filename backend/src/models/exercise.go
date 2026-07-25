@@ -8,15 +8,17 @@ import (
 )
 
 type Exercise struct {
-	ID          string         `json:"id" gorm:"primaryKey;type:uuid"`
-	Name        string         `json:"name" gorm:"not null"`
-	Description string         `json:"description"`
-	MuscleGroup string         `json:"muscle_group"`
-	Level       string         `json:"level"`
-	VideoURL    string         `json:"video_url"`
-	CreatedAt   time.Time      `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt   time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
-	DeletedAt   gorm.DeletedAt `json:"-" gorm:"index"`
+	ID            string         `json:"id" gorm:"primaryKey;type:uuid"`
+	Name          string         `json:"name" gorm:"not null"`
+	Description   string         `json:"description"`
+	MuscleGroupID *string        `json:"muscle_group_id" gorm:"type:uuid"`
+	LevelID       *string        `json:"level_id" gorm:"type:uuid"`
+	MuscleGroup   *MuscleGroup   `json:"muscle_group,omitempty" gorm:"foreignKey:MuscleGroupID"`
+	Level         *Level         `json:"level,omitempty" gorm:"foreignKey:LevelID"`
+	VideoURLs     []string       `json:"video_urls" gorm:"serializer:json"`
+	CreatedAt     time.Time      `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt     time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
+	DeletedAt     gorm.DeletedAt `json:"-" gorm:"index"`
 }
 
 func (Exercise) TableName() string {
